@@ -120,21 +120,17 @@ function parseShapesToObjects(shapes, classesByIriOUT, propertiesByIdOUT) {
       shaclProp["shaclClass"] = shaclClass;
     } else if (isPropertyIdFn(subj)) {
       //Property
-      let propValue = getIriName(obj);
+      let propValue = obj;
       let propName = getIriName(pred);
-      let propId = getIriName(subj);
-
-      if (propName == "path") {
-        propValue = obj;
-      }
+      let propId = subj;
 
       propertiesByIdOUT[propId] = propertiesByIdOUT[propId] ?? { id: propId };
       propertiesByIdOUT[propId][propName] = propValue;
     } else {
       //Class attribute
-      let attrValue = getIriName(obj);
+      let attrValue = obj;
       let attrName = getIriName(pred);
-      let classIri = subj;//getUrlFragment(subj);
+      let classIri = subj;
       
       classesByIriOUT[classIri] = classesByIriOUT[classIri] ?? { iri: classIri, shaclProps: [] };
       classesByIriOUT[classIri][attrName] = attrValue;
@@ -160,6 +156,7 @@ async function pushShaclToViziquerDb(classesByIri, propertiesById) {
       ns_id,
       local_name,
       display_name,
+      is_literal,
       indirect_members,
       is_unique,
       hide_in_main,
@@ -168,9 +165,10 @@ async function pushShaclToViziquerDb(classesByIri, propertiesById) {
     VALUES (
       $1,
       true,
-      68,
+      69,
       $2,
       $3,
+      null,
       false,
       false,
       false,
@@ -213,7 +211,7 @@ async function pushShaclToViziquerDb(classesByIri, propertiesById) {
         pc_ask_endpoint)
       VALUES (
         $1,
-        68,
+        69,
         $2,
         $3,
         false,
@@ -244,7 +242,7 @@ async function pushShaclToViziquerDb(classesByIri, propertiesById) {
 
       //TODO: SQL injection & ORM?
       //TODO: dynamicly add namespaces
-      let cpRels = (await db.one(`INSERT INTO ${dbSchema}.cp_rels (
+      let cpRelId = (await db.one(`INSERT INTO ${dbSchema}.cp_rels (
         class_id,
         property_id,
         type_id,
@@ -270,6 +268,34 @@ async function pushShaclToViziquerDb(classesByIri, propertiesById) {
         prop.dbId,
         prop.maxCount == "*" ? -1 : prop.maxCount,
         prop.minCount == "*" ? -1 : prop.minCount
+      ])).id;
+
+
+      if (prop.node) {
+        //TODO: implementēt šo. prop satur node OR datatype
+        continue;
+      }
+
+      //TEMP!! Šo vajadzētu nolasīt un atjaunot DB pusē
+      let datatypeToIdMapping = {
+        "http://www.w3.org/2001/XMLSchema#string": 1,
+        "http://www.w3.org/2001/XMLSchema#integer": 2,
+        "http://www.w3.org/2001/XMLSchema#dateTime": 3
+      };
+      let datatypeId = datatypeToIdMapping[prop.datatype];
+
+      //TODO: SQL injection & ORM?
+      //TODO: dynamicly add namespaces
+      let cpdRelId = (await db.one(`INSERT INTO ${dbSchema}.cpd_rels (
+        cp_rel_id,
+        datatype_id)
+      VALUES (
+        $1,
+        $2)
+      RETURNING id`,
+      [
+        cpRelId,
+        datatypeId
       ])).id;
     }
   }
