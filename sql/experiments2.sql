@@ -1,9 +1,27 @@
-select * from mini_university.classes
-select * from mini_university.properties
-select * from mini_university.cp_rels
-select * from mini_university.cpd_rels
+select * from dbpedia_shacl.classes
+select * from dbpedia_shacl.properties
+select * from dbpedia_shacl.cp_rels
+select * from dbpedia_shacl.cpd_rels
 
-select * from mini_university.ns
+select * from dbpedia_shacl.parameters
+select * from empty.parameters
+
+select * from dbpedia_shacl.ns
+delete from dbpedia_shacl.cpd_rels;
+delete from dbpedia_shacl.cp_rels;
+delete from dbpedia_shacl.properties;
+delete from dbpedia_shacl.classes;
+
+
+
+
+--select * from dbpedia_shacl.ns
+
+
+
+
+--insert into dbpedia_shacl.ns (name, value, priority, is_local, basic_order_level)
+--select name, value, priority, is_local, basic_order_level from mini_university.ns
 
 --insert into mini_university.ns (name, value, priority, is_local, basic_order_level)
 --values ('ex', 'http://example.com/ns#AddressShape', 0, false, 0)
