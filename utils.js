@@ -13,6 +13,10 @@ function getIriName(iri) {
   }
 }
 
+function isPropertyIdFn(text) {
+  return /^b\d+$/.test(text)
+}
+
 function getNamespace(iri) {
   if (iri.indexOf('#') !== -1) {
     return iri.split('#')[0]
@@ -21,12 +25,12 @@ function getNamespace(iri) {
   }
 }
 
-export function printNamespaces(shaclPath) {
+function printNamespaces(shaclPath) {
   let shaclText;
 
   try {
     shaclText = fs.readFileSync(shaclPath, 'utf8')
-    console.log(data)
+    //console.log(data)
   } catch (err) {
     console.error('Error reading file:', err)
   }
@@ -53,6 +57,7 @@ export function printNamespaces(shaclPath) {
   }
 }
 
+export { getIriName, isPropertyIdFn, printNamespaces }
 // export function prefixNamespaces(shaclPath, prefixNamespacePairs) {
 //   let shaclText;
 
