@@ -1,5 +1,6 @@
 import rdf from '@zazuko/env-node'
 import { getIriName, isPropertyIdFn } from "../utils.js";
+import _ from 'lodash'
 
 
 
@@ -47,14 +48,15 @@ function parseShapesToObjects(shapes, print = true) {
             shaclClass.pushShaclProperty(shaclProperty)
             shaclProperty.pushShaclClass(shaclClass)
         } else if (isPropertyIdFn(subject)) {
-            //Property
+            //Property field
             let propertyFieldValue = object
             let propertyFieldName = getIriName(predicate)
             let propertyId = subject
 
-            shaclPropertyCollection.getOrCreateProperty(propertyId)[propertyFieldName] = propertyFieldValue
+            let property = shaclPropertyCollection.getOrCreateProperty(propertyId)
+            property[propertyFieldName] = propertyFieldValue
         } else {
-            //Class attribute
+            //Class field
             let classFieldValue = object
             let classFieldName = getIriName(predicate)
             let classIri = subject
@@ -63,7 +65,12 @@ function parseShapesToObjects(shapes, print = true) {
             //console.log('got em');
             }
 
-            shaclClassCollection.getOrCreateClass(classIri)[classFieldName] = classFieldValue
+            let shaclClass = shaclClassCollection.getOrCreateClass(classIri)
+            if (classFieldName === 'targetClass') {
+                shaclClass.targetClassList.push(classFieldValue)
+            } else {
+                shaclClass[classFieldName] = classFieldValue
+            }
         }
 
         if (print) {
@@ -72,7 +79,7 @@ function parseShapesToObjects(shapes, print = true) {
     }
     
     processPropertyObjects(shaclClassCollection, shaclPropertyCollection)
-    processOrFieldCollection(shaclPropertyCollection)
+    processOrFieldCollection(shaclClassCollection, shaclPropertyCollection)
 
     return {
         classesByIri: shaclClassCollection.classesByIri,
@@ -105,45 +112,51 @@ function processPropertyObjects(shaclClassCollection, shaclPropertyCollection) {
 
 //Apstrādā propertijiem OR laukus
 //Precīzāk - saskaita entites kopā un izvelk ārā; Izvelk ārā kopīgos laukus 
-function processOrFieldCollection(shaclPropertyCollection) {
+function processOrFieldCollection(shaclClassCollection, shaclPropertyCollection) {
     for (let shaclProperty of shaclPropertyCollection.getAllProperties()) {
+        if (shaclProperty.path === 'http://dbpedia.org/ontology/country') {
+            console.log(shaclProperty.path)
+        }
+
         if (shaclProperty.or) {
-            processOrField(shaclProperty, shaclPropertyCollection)
+            processOrField(shaclProperty, shaclPropertyCollection, shaclClassCollection)
         }
     }
 }
 
-function processOrField(shaclProperty, shaclPropertyCollection) {
+function processOrField(shaclProperty, shaclPropertyCollection, shaclClassCollection) {
     let commonFields
     let orChainItem = shaclPropertyCollection.getProperty(shaclProperty.or)
     do {
-        let orNode = shaclPropertyCollection.getProperty(orChainItem.first)
-        
-        delete orNode.shaclDomainClass
-        delete orNode.shaclClasses
+        let orNode = shaclPropertyCollection.getPropertyRaw(orChainItem.first)
 
         if (!commonFields) {    //pirmā cikla iterācija
-            commonFields = orNode
-        } else {
-            commonFields = processOrNode(orNode, commonFields)
+            commonFields = JSON.parse(JSON.stringify(orNode))
+            commonFields.entities = '0'
         }
+        
+        commonFields = processOrNode(orNode, commonFields, shaclClassCollection)
 
         orChainItem = shaclPropertyCollection.getProperty(orChainItem.rest)
     } while (orChainItem)
 
     //uzstādām jaunos laukus
     for (let fieldKey in commonFields) {
-        if (shaclProperty[fieldKey]) {
+        if (_.isEmpty(shaclProperty[fieldKey])) {
+            shaclProperty[fieldKey] = commonFields[fieldKey]   
+        } else {
             throw new Error('Ar OR izteiksmi tiek pārrakstīts jau esošs lauks ' + fieldKey)
         }
-
-        shaclProperty[fieldKey] = commonFields[fieldKey]
     }
 }
 
 //commonFields laukiem uztaisa šķēlumu ar orNode laukiem. 'entities' ir īpašais gadījums
-function processOrNode(orNode, commonFields) {
-    let commonFieldsNew = {}
+function processOrNode(orNode, commonFields, shaclClassCollection) {
+    let commonFieldsNew = {
+        //izņēmumi
+        entities: commonFields.entities,
+        rdfValueClasses: commonFields.rdfValueClasses
+    }
 
     for (let fieldKey in orNode) {
         const fieldValue = orNode[fieldKey]
@@ -153,9 +166,21 @@ function processOrNode(orNode, commonFields) {
             const currentCount = Number(commonFields.entities ?? '0')
             const newCount = Number(fieldValue ?? '0')
             commonFieldsNew.entities = (currentCount + newCount).toString()
+        } else if (fieldKey.toLowerCase() === 'class') {
+            //akumulējam, nevis ņemam unikālo
+            const shaclClass = shaclClassCollection.getClassByTargetClass(fieldValue)
+            if (!shaclClass) {
+                console.log(`Nav atrasta klase pēc iri "${fieldValue}". Apstrādājot OR izteiksmi, lauks "${fieldKey}=${fieldValue}"`)
+            } else {
+                commonFieldsNew.rdfValueClasses = commonFields.rdfValueClasses || []
+                commonFieldsNew.rdfValueClasses.push(shaclClass)
+            }
         } else if (Object.keys(commonFields).indexOf(fieldKey) !== -1 && commonFields[fieldKey] === fieldValue) {
             //atstājam tikai tos propertijus, kas pilnībā atkārtojas
             commonFieldsNew[fieldKey] = commonFields[fieldKey]
+        } else {
+            console.log(`tiek izlaists lauks "${fieldKey}=${fieldValue}" OR izteiksmē. šobrīd netiek atbalstīts"`)
+            //šādi vēl netiek apstrādāti
         }
     }
 
@@ -178,21 +203,31 @@ class ShaclClassCollection {
         return shaclClass
     }
 
+    getClassByTargetClass(targetClass) {
+        return Object.values(this.classesByIri).find(c => c.targetClassList.indexOf(targetClass) !== -1)
+    }
+
     removeClass(classIri) {
         delete this.classesByIri[classIri]
     }
 }
 
 class ShaclClass {
+    dbIdList
+    
     iri
     name
     shaclProperties
+    
+    targetClassList     //Šis nedaudz pārveidots - uz masīvu
     // + citi lauki no SHACL faila...
 
     constructor(iri) {
+        this.dbIdList = []
         this.iri = iri
         this.shaclProperties = []
         this.name = getIriName(iri)
+        this.targetClassList = []
     }
 
     pushShaclProperty(shaclProperty) {
@@ -216,6 +251,10 @@ class ShaclPropertyCollection {
         return shaclProperty
     }
 
+    getPropertyRaw(propertyId) {
+        return this.getProperty(propertyId).getRaw();
+    }
+
     getProperty(propertyId) {
         return this.propertiesById[propertyId]
     }
@@ -229,11 +268,14 @@ class ShaclProperty {
     id
     shaclDomainClass
     shaclClasses
+
+    rdfValueClasses      //shacl#class vērtības
     // + citi lauki no SHACL faila...
 
     constructor(id) {
         this.id = id
         this.shaclClasses = []
+        this.rdfValueClasses = []
     }
 
     pushShaclClass(shaclClass) {
@@ -244,6 +286,18 @@ class ShaclProperty {
         } else {
             delete this.shaclDomainClass
         }
+    }
+
+    // atstāj tikai SHACL failā norādītos laukus, nevis šeit custom veidotos
+    getRaw() {
+        let prop = JSON.parse(JSON.stringify(this))
+        
+        delete prop.id
+        delete prop.shaclDomainClass
+        delete prop.shaclClasses
+        delete prop.rdfValueClasses
+
+        return prop
     }
 }
 
