@@ -1,5 +1,5 @@
 import rdf from '@zazuko/env-node'
-import { getIriName, isPropertyIdFn } from "../utils.js";
+import { getIriName, isPropertyIdFn } from "./utils.js";
 import _ from 'lodash'
 
 
@@ -33,10 +33,6 @@ function parseShapesToObjects(shapes, print = true) {
             throw new Error(`Neizdevas izgut datus no quad.\n ${object} => ${predicate} => ${subject}`)
         }
 
-        // if (subject.indexOf('leaderGovernmentAgencyShapeProperty') !== -1) {
-        //     console.log('aa');
-        // }
-
         if (getIriName(predicate) === 'property') {
             //Property binding to class
             let propertyId = object
@@ -60,10 +56,6 @@ function parseShapesToObjects(shapes, print = true) {
             let classFieldValue = object
             let classFieldName = getIriName(predicate)
             let classIri = subject
-
-            if (classIri.toLowerCase().indexOf('property') !== -1) {
-            //console.log('got em');
-            }
 
             let shaclClass = shaclClassCollection.getOrCreateClass(classIri)
             if (classFieldName === 'targetClass') {
@@ -114,10 +106,6 @@ function processPropertyObjects(shaclClassCollection, shaclPropertyCollection) {
 //Precīzāk - saskaita entites kopā un izvelk ārā; Izvelk ārā kopīgos laukus 
 function processOrFieldCollection(shaclClassCollection, shaclPropertyCollection) {
     for (let shaclProperty of shaclPropertyCollection.getAllProperties()) {
-        if (shaclProperty.path === 'http://dbpedia.org/ontology/country') {
-            console.log(shaclProperty.path)
-        }
-
         if (shaclProperty.or) {
             processOrField(shaclProperty, shaclPropertyCollection, shaclClassCollection)
         }

@@ -1,7 +1,7 @@
 import _ from 'lodash'
 import pgp from 'pg-promise'
 import pgUrlParse from 'pg-connection-string'
-import { getIriName } from '../utils.js'
+import { getIriName } from './utils.js'
 
 const pgpOptions = {}
 const pgpInstance = pgp(pgpOptions)
@@ -27,7 +27,8 @@ async function pushShaclToViziquerDb(classesByIri, propertiesById) {
     await pushShaclToCpRels(propertiesById, dbSchema, cnt)
 
     await pushShaclToCpcRels(propertiesById, dbSchema, cnt)
-    await pushShaclToPpRels(propertiesById, dbSchema, cnt)
+    await pushShaclToPpRelsType1(propertiesById, dbSchema, cnt)
+    await pushShaclToPpRelsType2(propertiesById, dbSchema, cnt)
 
     await setRdfType(dbSchema)
 }
@@ -173,7 +174,7 @@ async function pushShaclToProperties(propertiesById, dbSchema, cnt) {
                         shaclDomainClassDbId || null
                     ])).id
                 } catch (error) {
-                    console.log('sup')
+                    console.log(error)
                     throw error
                 }
         
@@ -330,14 +331,7 @@ async function pushShaclToCpcRels(propertiesById, dbSchema, cnt) {
 
 
         for (let shaclClassDbId of prop.shaclClasses.flatMap(c => c.dbIdList)) {
-            for (let rdfValueClassDbId of prop.rdfValueClasses.flatMap(c => c.dbIdList)) {
-                if (prop.path === 'http://dbpedia.org/ontology/country') {
-                    console.log('stop')
-                }
-                if (prop.shaclClasses.find(c => c.iri === 'http://dbpedia.org/ontology/City')) {
-                    console.log('stop')
-                }
-                
+            for (let rdfValueClassDbId of prop.rdfValueClasses.flatMap(c => c.dbIdList)) {              
                 //TODO!
                 //cnt = Number(prop.entities ?? cnt.toString())
     
@@ -453,7 +447,7 @@ async function pushShaclToCpcRels(propertiesById, dbSchema, cnt) {
     }
 }
 
-async function pushShaclToPpRels(propertiesById, dbSchema, cnt) {
+async function pushShaclToPpRelsType1(propertiesById, dbSchema, cnt) {
     let existingPpRelIdByGroup = {} 
 
     for (let propertyId in propertiesById) {
@@ -483,6 +477,52 @@ async function pushShaclToPpRels(propertiesById, dbSchema, cnt) {
                             property.dbId,
                             subPropertyDbId,
                             1,      //1 = followed_by
+                            cnt
+                        ])).id
+                    } catch (e) {
+                        console.log(e)
+                        throw e
+                    }
+
+                    existingPpRelIdByGroup[key] = ppRelId
+                }
+            }
+        }
+    }
+
+    //TODO: pielikt pp_rels arī otrā virzienā ar pp_rel_types = 2("common_subject")
+}
+
+async function pushShaclToPpRelsType2(propertiesById, dbSchema, cnt) {
+    let existingPpRelIdByGroup = {} 
+
+    for (let propertyId in propertiesById) {
+        let property = propertiesById[propertyId]
+        if (property.shaclClasses) {
+            let superPropertyDbIds = property.shaclClasses.flatMap(c => c.shaclProperties.map(p => p.dbId))
+            for (let superPropertyDbId of superPropertyDbIds) {
+                let key = `${property.dbId}__${superPropertyDbId}`
+                let ppRelId = existingPpRelIdByGroup[key]
+                if (!ppRelId) {
+                    try {
+                        ppRelId = (await db.one(`INSERT INTO ${dbSchema}.pp_rels (
+                            property_1_id,
+                            property_2_id,
+                            type_id,
+                            cnt
+                        )
+                        OVERRIDING SYSTEM VALUE
+                        VALUES (
+                            $1,
+                            $2,
+                            $3,
+                            $4
+                        )
+                        RETURNING id`,
+                        [
+                            property.dbId,
+                            superPropertyDbId,
+                            2,      //2 = common_subject
                             cnt
                         ])).id
                     } catch (e) {
