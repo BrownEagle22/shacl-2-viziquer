@@ -16,3 +16,4 @@ This tool can read RDF knowledge graph SHACL files written in Turtle syntax and 
 ## Notes
 * Some sample SHACL input files are located in `shacl-samples` folder. They are retrieved from the research https://zenodo.org/records/6798849.
 * `database/dbpedia_shacl_dump.sql` contains a sample DB schema, that is already filled with metadata retrieved from `shacl-samples/DBpedia_SHACL_2023_processed.ttl`
+* `shacl-samples/DBpedia_SHACL_2023_processed.ttl` file was made by removing unwanted artifacts from `shacl-samples/DBpedia_SHACL_2023.ttl` file, e.g. `%3E` symbols
