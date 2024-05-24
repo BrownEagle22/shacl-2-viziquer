@@ -53,8 +53,6 @@ async function pushShaclToClasses(classesByIri, dbSchema, cnt) {
     
             cnt = Number(shaclClass.entities ?? cnt.toString())
     
-            //TODO: SQL injection & ORM?
-            //TODO: dynamicly add namespaces
             let classId = (await db.one(`INSERT INTO ${dbSchema}.classes (
                 iri,
                 cnt,
@@ -123,8 +121,6 @@ async function pushShaclToProperties(propertiesById, dbSchema, cnt) {
                 cnt = Number(prop.entities ?? cnt.toString())
     
                 try {
-                    //TODO: SQL injection & ORM?
-                    //TODO: dynamicly add namespaces
                     propertyId = (await db.one(`INSERT INTO ${dbSchema}.properties (
                         iri,
                         cnt,
@@ -170,7 +166,7 @@ async function pushShaclToProperties(propertiesById, dbSchema, cnt) {
                         cnt,
                         getIriName(iri),
                         getIriName(iri),
-                        1,//cnt,    TODO!
+                        1,
                         shaclDomainClassDbId || null
                     ])).id
                 } catch (error) {
@@ -214,14 +210,11 @@ async function pushShaclToCpRels(propertiesById, dbSchema, cnt) {
   
         for (let shaclClass of prop.shaclClasses) {
             for (let shaclClassDbId of shaclClass.dbIdList) {
-                //TODO!
                 //cnt = Number(prop.entities ?? cnt.toString())
             
                 if (prop.path) {
                     let isOutgoing = true
         
-                    //TODO: SQL injection & ORM?
-                    //TODO: dynamicly add namespaces
                     let cpRelId = (await db.one(`INSERT INTO ${dbSchema}.cp_rels (
                         class_id,
                         property_id,
@@ -259,37 +252,6 @@ async function pushShaclToCpRels(propertiesById, dbSchema, cnt) {
                         prop.minCount === '*' ? -1 : prop.minCount,
                         cnt
                     ])).id
-        
-                    // if (prop.node) {
-                    //   //TODO: implementēt šo. prop satur node OR datatype
-                    //   continue
-                    // }
-            
-                    // //TEMP!! Šo vajadzētu nolasīt un atjaunot DB pusē
-                    // let datatypeToIdMapping = {
-                    //   'http://www.w3.org/2001/XMLSchema#string': 1,
-                    //   'http://www.w3.org/2001/XMLSchema#integer': 2,
-                    //   'http://www.w3.org/2001/XMLSchema#dateTime': 3
-                    // }
-                    // let datatypeId = datatypeToIdMapping[prop.datatype]
-            
-                    //TODO: SQL injection & ORM?
-                    //TODO: dynamicly add namespaces
-                    // let cpdRelId = (await db.one(`INSERT INTO ${dbSchema}.cpd_rels (
-                    //   cp_rel_id,
-                    //   datatype_id,
-                    //   cnt)
-                    // OVERRIDING SYSTEM VALUE
-                    // VALUES (
-                    //   $1,
-                    //   $2,
-                    //   $3)
-                    // RETURNING id`,
-                    // [
-                    //   cpRelId,
-                    //   datatypeId,
-                    //   cnt
-                    // ])).id;
                 }
             }
         }
@@ -332,7 +294,6 @@ async function pushShaclToCpcRels(propertiesById, dbSchema, cnt) {
 
         for (let shaclClassDbId of prop.shaclClasses.flatMap(c => c.dbIdList)) {
             for (let rdfValueClassDbId of prop.rdfValueClasses.flatMap(c => c.dbIdList)) {              
-                //TODO!
                 //cnt = Number(prop.entities ?? cnt.toString())
     
                 let cpRelId = existingCpRelIdByGroup[`${rdfValueClassDbId}__${prop.dbId}__${isOutgoing ? 2 : 1}`]
@@ -411,38 +372,6 @@ async function pushShaclToCpcRels(propertiesById, dbSchema, cnt) {
                     existingCpcRelIdByGroup[`${cpRelId}__${shaclClassDbId}`] = cpcRelId
                 }
             }
-
-
-            // if (prop.node) {
-            //   //TODO: implementēt šo. prop satur node OR datatype
-            //   continue
-            // }
-    
-            // //TEMP!! Šo vajadzētu nolasīt un atjaunot DB pusē
-            // let datatypeToIdMapping = {
-            //   'http://www.w3.org/2001/XMLSchema#string': 1,
-            //   'http://www.w3.org/2001/XMLSchema#integer': 2,
-            //   'http://www.w3.org/2001/XMLSchema#dateTime': 3
-            // }
-            // let datatypeId = datatypeToIdMapping[prop.datatype]
-    
-            //TODO: SQL injection & ORM?
-            //TODO: dynamicly add namespaces
-            // let cpdRelId = (await db.one(`INSERT INTO ${dbSchema}.cpd_rels (
-            //   cp_rel_id,
-            //   datatype_id,
-            //   cnt)
-            // OVERRIDING SYSTEM VALUE
-            // VALUES (
-            //   $1,
-            //   $2,
-            //   $3)
-            // RETURNING id`,
-            // [
-            //   cpRelId,
-            //   datatypeId,
-            //   cnt
-            // ])).id;
         }
     }
 }
@@ -489,8 +418,6 @@ async function pushShaclToPpRelsType1(propertiesById, dbSchema, cnt) {
             }
         }
     }
-
-    //TODO: pielikt pp_rels arī otrā virzienā ar pp_rel_types = 2("common_subject")
 }
 
 async function pushShaclToPpRelsType2(propertiesById, dbSchema, cnt) {
@@ -535,51 +462,8 @@ async function pushShaclToPpRelsType2(propertiesById, dbSchema, cnt) {
             }
         }
     }
-
-    //TODO: pielikt pp_rels arī otrā virzienā ar pp_rel_types = 2("common_subject")
 }
   
-async function pushShaclToCpdRels(propertiesById) {
-    let existingPropertyPaths = []
-  
-    for (let id in propertiesById) {
-        let prop = propertiesById[id]
-  
-        if (prop.path && existingPropertyPaths.indexOf(prop.path) === -1) {
-            if (prop.node) {
-                //TODO: implementēt šo. prop satur node OR datatype
-                continue
-            }
-  
-            //TEMP!! Šo vajadzētu nolasīt un atjaunot DB pusē
-            let datatypeToIdMapping = {
-                'http://www.w3.org/2001/XMLSchema#string': 1,
-                'http://www.w3.org/2001/XMLSchema#integer': 2,
-                'http://www.w3.org/2001/XMLSchema#dateTime': 3
-            }
-            let datatypeId = datatypeToIdMapping[prop.datatype]
-    
-            //TODO: SQL injection & ORM?
-            //TODO: dynamicly add namespaces
-            // let cpdRelId = (await db.one(`INSERT INTO ${dbSchema}.cpd_rels (
-            //   cp_rel_id,
-            //   datatype_id,
-            //   cnt)
-            // OVERRIDING SYSTEM VALUE
-            // VALUES (
-            //   $1,
-            //   $2,
-            //   $3)
-            // RETURNING id`,
-            // [
-            //   cpRelId,
-            //   datatypeId,
-            //   cnt
-            // ])).id;
-        }
-    }
-}
-
 async function setRdfType(dbSchema) {
     await db.none(`update ${dbSchema}.properties
         set ns_id=1

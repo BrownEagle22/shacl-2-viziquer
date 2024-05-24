@@ -10,9 +10,8 @@ import { pushShaclToViziquerDb } from './db-writer.js'
 
 
 async function main() {
-  let shapesfile = "DBpedia_SHACL_2023_processed.ttl"
-  let shaclPath = `../../shacl-samples/${shapesfile}`
-
+  let shaclPath = process.env.INPUT_FILE
+  
   printNamespaces(shaclPath)
 
   let { classesByIri, propertiesById } = await parseFileToObjects(shaclPath, false)

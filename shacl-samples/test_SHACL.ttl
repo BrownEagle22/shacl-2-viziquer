@@ -1,0 +1,56 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix edm: <http://www.europeana.eu/schemas/edm/> .
+@prefix ore: <http://www.openarchives.org/ore/terms/> .
+@prefix cc: <https://creativecommons.org/ns#> .
+@prefix sioc: <http://rdfs.org/sioc/services#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ebucore: <http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#> .
+@prefix rdag2: <http://rdvocab.info/ElementsGr2/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.com/ns#> .
+
+ex:AddressShape
+	a sh:NodeShape ;
+	sh:property [
+		sh:path ex:postalCodee ;
+		sh:datatype xsd:string ;
+		sh:minCount 0 ;
+		sh:maxCount 1 ;
+	] .
+
+ex:PersonShape
+	a sh:NodeShape ;
+	sh:targetClass ex:Person ;
+	sh:property [
+		sh:path ex:firstNamee ;
+		sh:datatype xsd:string ;
+		sh:minCount 0 ;
+		sh:maxCount 1 ;
+	] ;
+	sh:property [
+		sh:path ex:lastNamee ;
+		sh:datatype xsd:string ;
+		sh:minCount 0 ;
+		sh:maxCount 1 ;
+	] ;
+	sh:property [
+		sh:path ex:agee ;
+		sh:minCount 0 ;
+		sh:maxCount 1 ;
+		sh:datatype xsd:integer ;
+	] ;
+	sh:property [
+		sh:path ex:addresss ;
+		sh:minCount 0 ;
+		sh:maxCount 1 ;
+		sh:node ex:AddressShape ;
+	] .
